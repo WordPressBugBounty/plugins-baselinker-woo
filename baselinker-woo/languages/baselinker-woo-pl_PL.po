@@ -1,0 +1,37 @@
+# Translation of Plugins - Base (formerly BaseLinker) &#8211; 300+ marketplaces, 150+ carriers &amp; PIM &amp; OMS &amp; WMS in one - Stable (latest release) in Polish
+# This file is distributed under the same license as the Plugins - Base (formerly BaseLinker) &#8211; 300+ marketplaces, 150+ carriers &amp; PIM &amp; OMS &amp; WMS in one - Stable (latest release) package.
+msgid ""
+msgstr ""
+"PO-Revision-Date: 2024-11-18 12:39:20+0000\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n == 1) ? 0 : ((n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14)) ? 1 : 2);\n"
+"X-Generator: GlotPress/4.0.1\n"
+"Language: pl\n"
+"Project-Id-Version: Plugins - Base (formerly BaseLinker) &#8211; 300+ marketplaces, 150+ carriers &amp; PIM &amp; OMS &amp; WMS in one - Stable (latest release)\n"
+
+#. Author URI of the plugin
+#: baselinker.php
+msgid "http://baselinker.com/"
+msgstr "http://baselinker.com/"
+
+#. Author of the plugin
+#: baselinker.php
+msgid "BaseLinker"
+msgstr "BaseLinker"
+
+#. Description of the plugin
+#: baselinker.php
+msgid "This modules offers faster WooCommerce product synchronizations to BaseLinker, improved offer filtering and order searching.  A must-have for any BaseLinker user."
+msgstr "Ten plugin umożliwia znacznie szybsze synchronizacje oferty sklepu do BaseLinker oraz usprawnia filtrowanie produktów wg różnych parametrów.  Konieczny dodatek dla każdego użytkownika platformy BaseLinker.com."
+
+#. Plugin URI of the plugin
+#: baselinker.php
+msgid "https://developers.baselinker.com/shops_api/extensions/"
+msgstr "https://developers.baselinker.com/shops_api/extensions/"
+
+#. Plugin Name of the plugin
+#: baselinker.php
+msgid "BaseLinker-Woo"
+msgstr "BaseLinker-Woo"
