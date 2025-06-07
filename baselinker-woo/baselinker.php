@@ -1,13 +1,18 @@
 <?php
 /**
- * @package Base
+ * @package BaseLinker
  * @version 1.0.26
  */
 /*
+Plugin Name: BaseLinker-Woo
+Plugin URI: https://developers.baselinker.com/shops_api/extensions/
+Description: This modules offers faster WooCommerce product synchronizations to BaseLinker, improved offer filtering and order searching.  A must-have for any BaseLinker user.
 Text Domain:  baselinker-woo
 Domain Path: /languages
-Author: Base
+Author: BaseLinker
 Version: 1.0.26
+Author URI: http://baselinker.com/
+License: GPLv3 or later
 */
 
 if (!defined('ABSPATH'))
