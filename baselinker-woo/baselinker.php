@@ -1,7 +1,7 @@
 <?php
 /**
  * @package BaseLinker
- * @version 1.0.26
+ * @version 1.0.27
  */
 /*
 Plugin Name: BaseLinker-Woo
@@ -10,7 +10,7 @@ Description: This modules offers faster WooCommerce product synchronizations to 
 Text Domain:  baselinker-woo
 Domain Path: /languages
 Author: BaseLinker
-Version: 1.0.26
+Version: 1.0.27
 Author URI: http://baselinker.com/
 License: GPLv3 or later
 */
@@ -22,7 +22,7 @@ if (!defined('ABSPATH'))
 
 function baselinker_version($data)
 {
-	return '1.0.26';
+	return '1.0.27';
 }
 
 // adds delivery point data from Packetery and some other plugins
@@ -74,7 +74,7 @@ WHERE `id` = %s", (int)$post->get_id())))
 	$q = array('post_parent' => $post->get_id(), 'post_type' => 'shipment');
 	$shipments = get_children($q);
 
-	if (count($shipments))
+	if (!empty($shipments))
 	{
 		$shipment = array_shift($shipments);
 		$response->data['shipment_meta'] = serialize(get_post_meta($shipment->ID));
@@ -124,7 +124,7 @@ function baselinker_insert_shop_order($object, $request, $create)
 // search orders by the number stored in a meta field
 function baselinker_query_by_order_number($args, $request)
 {
-	if (isset($request['order_number']) and (intval($request['order_number']) or $request['order_number'] == '%'))
+	if (isset($request['order_number']) and (!empty(intval($request['order_number'])) or $request['order_number'] == '%'))
 	{
 		$args['meta_key'] = isset($request['order_number_meta']) ? $request['order_number_meta'] : '_order_number';
 
@@ -195,42 +195,67 @@ function baselinker_product_list($data)
 	if (isset($data['limit']) and (int)$data['limit'] > 0)
 	{
 		$cutoff_limit = (int)$data['limit'];
+
+		if ($cutoff_limit < $args['limit'])
+		{
+			$args['limit'] = $cutoff_limit;
+		}
+	}
+
+	if (!empty($data['cutoff']))
+	{
+		$cutoff_limit = (int)$data['cutoff'];
+	}
+
+	if (isset($data['order']) and preg_match('/^(asc|desc)$/i', $data['order']))
+	{
+		$args['order'] = strtoupper($data['order']);
+	}
+
+	if (isset($data['orderby']) and preg_match('/^(ID|name|none|date|modified)$/', $data['orderby']))
+	{
+		$args['orderby'] = $data['orderby'];
+	}
+	else
+	{
+		$args['orderby'] = 'ID';
+		$args['order'] = 'desc';
 	}
 
 	if (isset($data['offset']))
 	{
-		$page = ceil(($data['offset']+1)/100);
+		$page = ceil(((int)$data['offset']+1)/$args['limit']);
 		unset($data['offset']);
 	}
 
-	if (isset($data['lang']))
+	if (isset($data['lang']) and preg_match('/^\w+/', $data['lang']))
 	{
 		$args['lang'] = $data['lang'];
 	}
 
-	if (isset($data['exclude']))
+	if (isset($data['exclude']) and preg_match('/^\d[\d,]*$/', $data['exclude']))
 	{
-		$args['exclude'] = $data['exclude'];
+		$args['exclude'] = explode(',', $data['exclude']);
 	}
 
-	if (isset($data['include']))
+	if (isset($data['include']) and preg_match('/^\d[\d,]*$/', $data['include']))
 	{
-		$args['include'] = $data['include'];
+		$args['include'] = explode(',', $data['include']);
 	}
 
-	if (isset($data['type']))
+	if (isset($data['type']) and in_array($data['type'], ['external', 'grouped', 'simple', 'variable']))
 	{
 		$args['type'] = $data['type'];
 	}
 
 	if (isset($data['parent']))
 	{
-		$args['parent'] = $data['parent'];
+		$args['parent'] = (int)$data['parent'];
 	}
 
 	if (isset($data['status']))
 	{
-		$args['status'] = $data['status'];
+		$args['status'] = preg_replace('/[^\w\s]/', '', $data['status']);
 	}
 
 	if (isset($data['qty_fld']) and $data['qty_fld'] == 'stock_quantity')
@@ -238,7 +263,7 @@ function baselinker_product_list($data)
 		unset($data['qty_fld']);
 	}
 
-	if (isset($data['category_id']) and (int)$data['category_id'])
+	if (isset($data['category_id']) and (int)$data['category_id'] > 0)
 	{
 		foreach (baselinker_category_list($data) as $cat)
 		{
@@ -248,6 +273,26 @@ function baselinker_product_list($data)
 				break;
 			}
 		}
+	}
+
+	if (!empty($data['min_stock']))
+	{
+		$args['min_stock'] = $data['min_stock'];
+	}
+
+	if (!empty($data['max_stock']))
+	{
+		$args['max_stock'] = $data['max_stock'];
+	}
+
+	if (!empty($data['min_price']))
+	{
+		$args['min_price'] = $data['min_price'];
+	}
+
+	if (!empty($data['max_price']))
+	{
+		$args['max_price'] = $data['max_price'];
 	}
 
 	if (!empty($data['with_variants']))
@@ -262,7 +307,6 @@ function baselinker_product_list($data)
 		
 	do {
 		$args['page'] = $page;
-
 		$res = wc_get_products($args);
 
 		if (!is_object($res) and !isset($res->products))
@@ -356,7 +400,7 @@ function baselinker_product_list($data)
 					{
 						while ($variations_subset = array_splice($variation_ids, 0, 100))
 						{
-							$prod_variations = baselinker_product_list(array('include' => $variations_subset, 'type' => 'variation', 'limit' => 100));
+							$prod_variations = baselinker_product_list(array('include' => implode(',', $variations_subset), 'type' => 'variation', 'limit' => $args['limit']));
 
 							foreach ($prod_variations as $vid => $v)
 							{
@@ -444,17 +488,17 @@ function baselinker_prepare_product($response, $object, $request)
 
 				$dimensions = array();
 
-				if ($dim = (int)$variation->get_width())
+				if (($dim = (int)$variation->get_width()) > 0)
 				{
 					$dimensions['width'] = $dim;
 				}
 
-				if ($dim = (int)$variation->get_length())
+				if (($dim = (int)$variation->get_length()) > 0)
 				{
 					$dimensions['length'] = $dim;
 				}
 
-				if ($dim = (int)$variation->get_height())
+				if (($dim = (int)$variation->get_height()) > 0)
 				{
 					$dimensions['height'] = $dim;
 				}
@@ -538,22 +582,6 @@ function baselinker_product_object_query($args, $request)
 		$args['meta_value'] = $find_ean;
 	}
 
-	// quantity brackets
-	$min_stock = $request->get_param('min_stock');
-	$max_stock = $request->get_param('max_stock');
-
-	if (isset($min_stock) or isset($max_stock))
-	{
-		$args['post_type'] = array('product', 'product_variation');
-		$args['meta_query'][] = array(
-			'key' => '_stock',
-			'value' => array(isset($min_stock) ? (int)$min_stock : 0, isset($max_stock) ? (int)$max_stock : 99999999),
-			'compare' => 'BETWEEN',
-			'type' => 'numeric',
-		);
-		
-	}
-
 	// categories excluded in baselinker
 	if ($cats_exclude = $request->get_param('categories_exclude'))
 	{
@@ -578,10 +606,42 @@ function baselinker_authenticate()
 	return $auth->authenticate(false) ? true : false;
 }
 
+function baselinker_custom_query_vars($query, $query_vars)
+{
+	// quantity brackets
+	if (!empty($query_vars['min_stock']) or !empty($query_vars['max_stock']))
+	{
+		$min_stock = $query_vars['min_stock'] ?? null;
+		$max_stock = $query_vars['max_stock'] ?? null;
+
+		$query['meta_query'][] = [
+			'key' => '_stock',
+			'value' => [isset($min_stock) ? (int)$min_stock : 0, isset($max_stock) ? (int)$max_stock : 99999999],
+			'compare' => 'BETWEEN',
+			'type' => 'numeric',
+		];
+	}
+
+	// price brackets
+	if (!empty($query_vars['min_price']) or !empty($query_vars['max_price']))
+	{
+		$min_price = $query_vars['min_price'] ?? null;
+		$max_price = $query_vars['max_price'] ?? null;
+
+		$query['meta_query'][] = [
+			'key' => '_price',
+			'value' => [isset($min_price) ? (float)$min_price : 0, isset($max_price) ? (float)$max_price : 99999999],
+			'compare' => 'BETWEEN',
+			'type' => 'numeric',
+		];
+	}
+
+	return $query;
+}
+
 
 // defining additional REST API endpoints
 add_action('rest_api_init', function() {
-
 	register_rest_route('bl/v2', '/shipping_methods/', array('methods' => 'GET', 'callback' => 'baselinker_shipping_methods', 'permission_callback' => '__return_true'));
 	register_rest_route('wc-bl/v2', '/product_list/', array('methods' => 'GET', 'callback' => 'baselinker_product_list', 'permission_callback' => 'baselinker_authenticate'));
 	register_rest_route('wc-bl/v2', '/category_list/', array('methods' => 'GET', 'callback' => 'baselinker_category_list', 'permission_callback' => 'baselinker_authenticate'));
@@ -591,7 +651,6 @@ add_action('rest_api_init', function() {
 
 
 add_action('before_woocommerce_init', function() {
-
 	if (class_exists(\Automattic\WooCommerce\Utilities\FeaturesUtil::class))
 	{
 		\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility('custom_order_tables', __FILE__, true);
@@ -599,7 +658,6 @@ add_action('before_woocommerce_init', function() {
 });
 
 add_action('plugins_loaded', function() {
-
 	load_plugin_textdomain('baselinker-woo', FALSE, basename(dirname(__FILE__)) . '/languages/');
 });
 
@@ -608,4 +666,5 @@ add_filter('woocommerce_rest_insert_shop_order_object', 'baselinker_insert_shop_
 add_filter('woocommerce_rest_shop_order_object_query', 'baselinker_query_by_order_number', 10, 2);
 add_filter('woocommerce_rest_prepare_product_object', 'baselinker_prepare_product', 20, 3);
 add_filter('woocommerce_rest_product_object_query', 'baselinker_product_object_query', 10, 2);
+add_filter('woocommerce_product_data_store_cpt_get_products_query', 'baselinker_custom_query_vars', 10, 2 );
 ?>
