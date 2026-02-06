@@ -1,7 +1,7 @@
 <?php
 /**
  * @package BaseLinker
- * @version 1.0.27
+ * @version 1.0.28
  */
 /*
 Plugin Name: BaseLinker-Woo
@@ -10,7 +10,7 @@ Description: This modules offers faster WooCommerce product synchronizations to 
 Text Domain:  baselinker-woo
 Domain Path: /languages
 Author: BaseLinker
-Version: 1.0.27
+Version: 1.0.28
 Author URI: http://baselinker.com/
 License: GPLv3 or later
 */
@@ -22,7 +22,7 @@ if (!defined('ABSPATH'))
 
 function baselinker_version($data)
 {
-	return '1.0.27';
+	return '1.0.28';
 }
 
 // adds delivery point data from Packetery and some other plugins
@@ -393,6 +393,11 @@ function baselinker_product_list($data)
 					'attributes' => $attributes,
 					'baselinker_variations' => array(),
 				);
+
+				if (method_exists($prod, 'get_global_unique_id'))
+				{
+					$products[$prod->get_id()]['global_unique_id'] = $prod->get_global_unique_id();
+				}
 
 				if (!empty($data['with_variants']) and $prod->get_type() == 'variable')
 				{
