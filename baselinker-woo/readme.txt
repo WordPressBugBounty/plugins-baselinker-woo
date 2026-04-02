@@ -1,8 +1,8 @@
 === Base (formerly BaseLinker) - 300+ marketplaces, 150+ carriers & PIM & OMS & WMS in one ===
 Plugin Name: Base (formerly BaseLinker) - 300+ marketplaces, 150+ carriers & PIM & OMS & WMS in one
 Contributors: baselinker
-Stable tag: 1.0.28
-Tested up to: 6.8.2
+Stable tag: 1.0.29
+Tested up to: 6.9.4
 Requires at least: 4.5.0
 Requires Plugins: woocommerce
 License: GPLv3

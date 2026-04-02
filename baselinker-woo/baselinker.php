@@ -1,7 +1,7 @@
 <?php
 /**
  * @package BaseLinker
- * @version 1.0.28
+ * @version 1.0.29
  */
 /*
 Plugin Name: BaseLinker-Woo
@@ -10,7 +10,7 @@ Description: This modules offers faster WooCommerce product synchronizations to 
 Text Domain:  baselinker-woo
 Domain Path: /languages
 Author: BaseLinker
-Version: 1.0.28
+Version: 1.0.29
 Author URI: http://baselinker.com/
 License: GPLv3 or later
 */
@@ -22,7 +22,7 @@ if (!defined('ABSPATH'))
 
 function baselinker_version($data)
 {
-	return '1.0.28';
+	return '1.0.29';
 }
 
 // adds delivery point data from Packetery and some other plugins
@@ -219,7 +219,7 @@ function baselinker_product_list($data)
 	else
 	{
 		$args['orderby'] = 'ID';
-		$args['order'] = 'desc';
+		$args['order'] = 'asc';
 	}
 
 	if (isset($data['offset']))
@@ -275,24 +275,17 @@ function baselinker_product_list($data)
 		}
 	}
 
-	if (!empty($data['min_stock']))
+	foreach (['def_qty', 'min_stock', 'max_stock', 'min_price', 'max_price'] as $arg_name)
 	{
-		$args['min_stock'] = $data['min_stock'];
+		if (!empty($data[$arg_name]))
+		{
+			$args[$arg_name] = $data[$arg_name];
+		}
 	}
 
-	if (!empty($data['max_stock']))
+	if (!empty($data['search_text']))
 	{
-		$args['max_stock'] = $data['max_stock'];
-	}
-
-	if (!empty($data['min_price']))
-	{
-		$args['min_price'] = $data['min_price'];
-	}
-
-	if (!empty($data['max_price']))
-	{
-		$args['max_price'] = $data['max_price'];
+		$args['search'] = $data['search_text'];
 	}
 
 	if (!empty($data['with_variants']))
@@ -307,7 +300,24 @@ function baselinker_product_list($data)
 		
 	do {
 		$args['page'] = $page;
-		$res = wc_get_products($args);
+
+		// Since wc_get_products() not longer allows for querying
+		// by variation id, we have to mimick that function's 
+		// output by repeatedly invoking wc_get_product.
+		if (isset($data['type']) and $data['type'] == 'variation' and !empty($data['include']) and preg_match_all('/\d+/', $data['include'], $m))
+		{
+			$variant_ids = $m[0];
+			$res = json_decode('{"products":[],"max_num_pages":0}');
+
+			foreach ($variant_ids as $vid)
+			{
+				$res->products[] = wc_get_product($vid);
+			}
+		}
+		else
+		{
+			$res = wc_get_products($args);
+		}
 
 		if (!is_object($res) and !isset($res->products))
 		{
@@ -365,21 +375,69 @@ function baselinker_product_list($data)
 					// collate individual variant quantities into the parent product quantity
 					elseif ($prod->get_type() == 'variable')
 					{
-						if ($variations = $prod->get_available_variations())
+						$variations = $prod->get_available_variations('object');
+
+						if (!empty($variations))
 						{
+							$v_manage_stock = false;
+
 							foreach ($variations as $v)
 							{
-								if ($v['is_in_stock'] and !empty($v['max_qty']))
+								if ($v->get_manage_stock())
 								{
-									$quantity += (int)$v['max_qty'];
+									$v_manage_stock = true;
+								}
+							}
+
+							// none of the variants has manage_stock turned on
+							if ($v_manage_stock)
+							{
+								// ... but the parent does
+								if ($prod->get_manage_stock())
+								{
+									// return exact stock amount for the parent product
+									$quantity = (int)$prod->get_stock_quantity();
+								}
+								else
+								{
+									// report default quantity for the parent product
+									$quantity = isset($data['def_qty']) ? $data['def_qty'] : 1;
+								}
+							}
+							else
+							{
+								foreach ($variations as $v)
+								{
+									if (!$v->get_manage_stock())
+									{
+										if ($v->get_stock_status() === 'instock')
+										{
+											$quantity += isset($data['def_qty']) ? $data['def_qty'] : 1;
+										}
+
+										continue;
+									}
+
+									$v_stock = $v->get_stock_quantity();
+
+									if ($v_stock > 0)
+									{
+										$quantity += $v_stock;
+									}
 								}
 							}
 						}
 					}
 					else
 					{
-						$quantity = $prod->get_manage_stock() ? (int)$prod->get_stock_quantity() : 1;
+						$quantity = $prod->get_manage_stock()
+							    ? (int)$prod->get_stock_quantity()
+							    : (isset($data['def_qty']) ? $data['def_qty'] : 1);
 					}
+				}
+				elseif (isset($data['def_qty']) and $prod->get_stock_status() == 'outofstock')
+				{
+					$quantity = 0;
 				}
 				
 				$products[$prod->get_id()] = array(
@@ -457,7 +515,9 @@ function baselinker_prepare_product($response, $object, $request)
 
 		foreach ($response->data['variations'] as $variation_id)
 		{
-			if ($variation = new WC_Product_Variation($variation_id))
+			$variation = new WC_Product_Variation($variation_id);
+
+			if ($variation->get_id() > 0)
 			{
 				$vimage = wp_get_attachment_image_src(get_post_thumbnail_id($variation_id), 'full', false);
 				$vimage = isset($vimage[0]) ? $vimage[0] : '';
@@ -510,6 +570,7 @@ function baselinker_prepare_product($response, $object, $request)
 
 				$variations[] = array(
 					'id' => $variation_id,
+					'name' => $variation->get_name(),
 					'sku' => $variation->get_sku(),
 					'in_stock' => $variation->is_in_stock(),
 					'stock_quantity' => (string)$variation->get_stock_quantity(),
@@ -618,13 +679,39 @@ function baselinker_custom_query_vars($query, $query_vars)
 	{
 		$min_stock = $query_vars['min_stock'] ?? null;
 		$max_stock = $query_vars['max_stock'] ?? null;
+		$condition = 
+			[
+				'key' => '_stock',
+				'value' => [isset($min_stock) ? (int)$min_stock : 0, isset($max_stock) ? (int)$max_stock : 99999999],
+				'compare' => 'BETWEEN',
+				'type' => 'numeric',
+			];
 
-		$query['meta_query'][] = [
-			'key' => '_stock',
-			'value' => [isset($min_stock) ? (int)$min_stock : 0, isset($max_stock) ? (int)$max_stock : 99999999],
-			'compare' => 'BETWEEN',
-			'type' => 'numeric',
-		];
+		if (
+			isset($query_vars['def_qty'])
+			&& (int)$query_vars['def_qty'] > 0
+			&& $query_vars['def_qty'] <= $max_stock
+			&&  $query_vars['def_qty'] >= $min_stock
+		)
+		{
+			$condition = [
+				'relation' => 'OR',
+				$condition,
+				[
+					'relation' => 'AND',
+					[
+						'key' => '_stock_status',
+						'value' => 'instock',
+					],
+					[
+						'key' => '_manage_stock',
+						'value' => 'no',
+					],
+				],
+			];
+		}
+
+		$query['meta_query'][] = $condition;
 	}
 
 	// price brackets
@@ -639,6 +726,12 @@ function baselinker_custom_query_vars($query, $query_vars)
 			'compare' => 'BETWEEN',
 			'type' => 'numeric',
 		];
+	}
+
+	// text search
+	if (!empty($query_vars['search']))
+	{
+		$query['s'] = esc_attr($query_vars['search']);
 	}
 
 	return $query;
