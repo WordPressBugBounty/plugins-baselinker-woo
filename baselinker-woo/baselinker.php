@@ -1,7 +1,7 @@
 <?php
 /**
  * @package BaseLinker
- * @version 1.0.29
+ * @version 1.0.30
  */
 /*
 Plugin Name: BaseLinker-Woo
@@ -10,7 +10,7 @@ Description: This modules offers faster WooCommerce product synchronizations to 
 Text Domain:  baselinker-woo
 Domain Path: /languages
 Author: BaseLinker
-Version: 1.0.29
+Version: 1.0.30
 Author URI: http://baselinker.com/
 License: GPLv3 or later
 */
@@ -22,7 +22,7 @@ if (!defined('ABSPATH'))
 
 function baselinker_version($data)
 {
-	return '1.0.29';
+	return '1.0.30';
 }
 
 // adds delivery point data from Packetery and some other plugins
@@ -668,8 +668,17 @@ function baselinker_product_object_query($args, $request)
 
 function baselinker_authenticate()
 {
-	$auth = new WC_REST_Authentication();
-	return $auth->authenticate(false) ? true : false;
+	if (method_exists('WC_REST_Authentication', 'instance'))
+	{
+		$res = WC_REST_Authentication::instance()->authenticate(false) ? true : false;
+	}
+	else // older versions of Woo
+	{
+		$auth = new WC_REST_Authentication();
+		$res = $auth->authenticate(false) ? true : false;
+	}
+
+	return $res ? $res : current_user_can('manage_woocommerce');
 }
 
 function baselinker_custom_query_vars($query, $query_vars)
