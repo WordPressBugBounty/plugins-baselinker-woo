@@ -1,7 +1,7 @@
 <?php
 /**
  * @package BaseLinker
- * @version 1.0.30
+ * @version 1.1.0
  */
 /*
 Plugin Name: BaseLinker-Woo
@@ -10,7 +10,7 @@ Description: This modules offers faster WooCommerce product synchronizations to 
 Text Domain:  baselinker-woo
 Domain Path: /languages
 Author: BaseLinker
-Version: 1.0.30
+Version: 1.1.0
 Author URI: http://baselinker.com/
 License: GPLv3 or later
 */
@@ -20,9 +20,11 @@ if (!defined('ABSPATH'))
 	exit; // Exit if accessed directly
 }
 
+require_once __DIR__ . '/includes/products-quantity.php';
+
 function baselinker_version($data)
 {
-	return '1.0.30';
+	return '1.1.0';
 }
 
 // adds delivery point data from Packetery and some other plugins
@@ -286,6 +288,30 @@ function baselinker_product_list($data)
 	if (!empty($data['search_text']))
 	{
 		$args['search'] = $data['search_text'];
+	}
+
+	if (!empty($data['filter_sku']))
+	{
+		$sku_product_ids = baselinker_product_ids_by_partial_sku($data['filter_sku']);
+
+		if (empty($sku_product_ids))
+		{
+			return array();
+		}
+
+		if (!empty($args['include']))
+		{
+			$args['include'] = array_values(array_intersect($args['include'], $sku_product_ids));
+
+			if (empty($args['include']))
+			{
+				return array();
+			}
+		}
+		else
+		{
+			$args['include'] = $sku_product_ids;
+		}
 	}
 
 	if (!empty($data['with_variants']))
@@ -587,6 +613,7 @@ function baselinker_prepare_product($response, $object, $request)
 					'weight' => (string)$variation->get_weight(),
 					'dimensions' => $dimensions,
 					'meta_data' => $vmeta,
+					'permalink' => $variation->get_permalink(),
 				);
 			}
 		}
@@ -604,6 +631,33 @@ function baselinker_category_list($data)
 	$categories = get_terms(array('taxonomy' => 'product_cat', 'hide_empty' => false));
 
 	return $categories;
+}
+
+// find published product IDs whose SKU contains the given fragment
+function baselinker_product_ids_by_partial_sku($sku_fragment)
+{
+	global $wpdb;
+
+	if (!isset($wpdb->wc_product_meta_lookup))
+	{
+		return array();
+	}
+
+	$like = '%' . $wpdb->esc_like($sku_fragment) . '%';
+
+	$sql = "SELECT DISTINCT
+			CASE
+				WHEN p.post_type = 'product_variation' AND p.post_parent > 0 THEN p.post_parent
+				ELSE l.product_id
+			END AS product_id
+		FROM {$wpdb->wc_product_meta_lookup} l
+		INNER JOIN {$wpdb->posts} p ON p.ID = l.product_id
+		WHERE l.sku LIKE %s
+			AND p.post_status = 'publish'";
+
+	$product_ids = $wpdb->get_col($wpdb->prepare($sql, $like));
+
+	return array_values(array_filter(array_map('absint', $product_ids)));
 }
 
 // filtering products by the occurence of the given phrase in their names
@@ -746,12 +800,28 @@ function baselinker_custom_query_vars($query, $query_vars)
 	return $query;
 }
 
+// remove stale record from the product lookup table
+function baselinker_forget_sku($param)
+{
+	global $wpdb;
+
+	// sku not empty but product marked as trash or non-existent
+	if (!empty($param['sku']) and empty(wc_get_product_id_by_sku($param['sku'])))
+	{
+		// clear orphaned lookup table entry
+		if ($wpdb->get_row("SHOW TABLES LIKE '{$wpdb->prefix}wc_product_meta_lookup'"))
+		{
+			$wpdb->delete($wpdb->prefix . 'wc_product_meta_lookup', ['sku' => $param['sku']]);
+		}
+	}
+}
 
 // defining additional REST API endpoints
 add_action('rest_api_init', function() {
 	register_rest_route('bl/v2', '/shipping_methods/', array('methods' => 'GET', 'callback' => 'baselinker_shipping_methods', 'permission_callback' => '__return_true'));
 	register_rest_route('wc-bl/v2', '/product_list/', array('methods' => 'GET', 'callback' => 'baselinker_product_list', 'permission_callback' => 'baselinker_authenticate'));
 	register_rest_route('wc-bl/v2', '/category_list/', array('methods' => 'GET', 'callback' => 'baselinker_category_list', 'permission_callback' => 'baselinker_authenticate'));
+	register_rest_route('wc-bl/v2', '/forget/', array('methods' => 'DELETE', 'callback' => 'baselinker_forget_sku', 'permission_callback' => 'baselinker_authenticate'));
 	register_rest_route('bl/v2', '/additional_order_statuses/', array('methods' => 'GET', 'callback' => 'baselinker_additional_order_statuses', 'permission_callback' => '__return_true'));
 	register_rest_route('bl/v2', '/version/', array('methods' => 'GET', 'callback' => 'baselinker_version', 'permission_callback' => '__return_true'));
 });

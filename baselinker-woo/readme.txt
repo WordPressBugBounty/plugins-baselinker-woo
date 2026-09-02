@@ -1,7 +1,7 @@
 === Base (formerly BaseLinker) - 300+ marketplaces, 150+ carriers & PIM & OMS & WMS in one ===
 Plugin Name: Base (formerly BaseLinker) - 300+ marketplaces, 150+ carriers & PIM & OMS & WMS in one
 Contributors: baselinker
-Stable tag: 1.0.30
+Stable tag: 1.1.0
 Tested up to: 6.9.4
 Requires at least: 4.5.0
 Requires Plugins: woocommerce
@@ -56,3 +56,41 @@ Join thousands of satisfied users of [Base.com x WooCommerce integration](https:
 
 Use a **free 14-day** trial with access to all functionalities or **Freemium subscription plan!**
 [Try it for free](https://bit.ly/wp-base-register)
+
+
+== Changelog ==
+
+= 1.1.0 =
+
+* Added product-quantity endpoint for faster synchronization of product
+  stock amounts to Base
+* Filtering products by SKU
+
+= 1.0.31 =
+
+* Synchronization of variation URL to Base
+
+= 1.0.30 =
+
+* Adjusted to work with OAuth across different versions of WooCommerce
+
+= 1.0.29 =
+
+* Fixed filtering of products by price range
+* Improved text searches (product names and descriptions)
+* Alternative method of collecting variant data
+
+= 1.0.28 =
+
+* Passing global_unique_id with product data
+
+= 1.0.27 =
+
+* Filtering by price, quantity
+* Flexible product list sorting (by id, name, modification date)
+* Better error handling
+
+= 1.0.26 =
+
+* Added translations
+ 
