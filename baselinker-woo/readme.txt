@@ -65,6 +65,7 @@ Use a **free 14-day** trial with access to all functionalities or **Freemium sub
 * Added product-quantity endpoint for faster synchronization of product
   stock amounts to Base
 * Filtering products by SKU
+* Filtering products by more than one status
 
 = 1.0.31 =
 

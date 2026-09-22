@@ -259,6 +259,10 @@ function baselinker_product_list($data)
 	{
 		$args['status'] = preg_replace('/[^\w\s]/', '', $data['status']);
 	}
+	elseif (isset($data['include_status']))
+	{
+		$args['include_status'] = preg_replace('/[^\w,\s]/', '', $data['include_status']);
+	}
 
 	if (isset($data['qty_fld']) and $data['qty_fld'] == 'stock_quantity')
 	{
