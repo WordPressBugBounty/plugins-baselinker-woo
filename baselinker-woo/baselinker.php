@@ -1,7 +1,7 @@
 <?php
 /**
  * @package BaseLinker
- * @version 1.1.0
+ * @version 1.1.2
  */
 /*
 Plugin Name: BaseLinker-Woo
@@ -10,7 +10,7 @@ Description: This modules offers faster WooCommerce product synchronizations to 
 Text Domain:  baselinker-woo
 Domain Path: /languages
 Author: BaseLinker
-Version: 1.1.0
+Version: 1.1.2
 Author URI: http://baselinker.com/
 License: GPLv3 or later
 */
@@ -20,11 +20,14 @@ if (!defined('ABSPATH'))
 	exit; // Exit if accessed directly
 }
 
+require_once __DIR__ . '/includes/tools.php';
+require_once __DIR__ . '/includes/multi-currency.php';
 require_once __DIR__ . '/includes/products-quantity.php';
+require_once __DIR__ . '/includes/products-prices.php';
 
 function baselinker_version($data)
 {
-	return '1.1.0';
+	return '1.1.2';
 }
 
 // adds delivery point data from Packetery and some other plugins
@@ -804,28 +807,12 @@ function baselinker_custom_query_vars($query, $query_vars)
 	return $query;
 }
 
-// remove stale record from the product lookup table
-function baselinker_forget_sku($param)
-{
-	global $wpdb;
-
-	// sku not empty but product marked as trash or non-existent
-	if (!empty($param['sku']) and empty(wc_get_product_id_by_sku($param['sku'])))
-	{
-		// clear orphaned lookup table entry
-		if ($wpdb->get_row("SHOW TABLES LIKE '{$wpdb->prefix}wc_product_meta_lookup'"))
-		{
-			$wpdb->delete($wpdb->prefix . 'wc_product_meta_lookup', ['sku' => $param['sku']]);
-		}
-	}
-}
 
 // defining additional REST API endpoints
 add_action('rest_api_init', function() {
 	register_rest_route('bl/v2', '/shipping_methods/', array('methods' => 'GET', 'callback' => 'baselinker_shipping_methods', 'permission_callback' => '__return_true'));
 	register_rest_route('wc-bl/v2', '/product_list/', array('methods' => 'GET', 'callback' => 'baselinker_product_list', 'permission_callback' => 'baselinker_authenticate'));
 	register_rest_route('wc-bl/v2', '/category_list/', array('methods' => 'GET', 'callback' => 'baselinker_category_list', 'permission_callback' => 'baselinker_authenticate'));
-	register_rest_route('wc-bl/v2', '/forget/', array('methods' => 'DELETE', 'callback' => 'baselinker_forget_sku', 'permission_callback' => 'baselinker_authenticate'));
 	register_rest_route('bl/v2', '/additional_order_statuses/', array('methods' => 'GET', 'callback' => 'baselinker_additional_order_statuses', 'permission_callback' => '__return_true'));
 	register_rest_route('bl/v2', '/version/', array('methods' => 'GET', 'callback' => 'baselinker_version', 'permission_callback' => '__return_true'));
 });
@@ -848,4 +835,5 @@ add_filter('woocommerce_rest_shop_order_object_query', 'baselinker_query_by_orde
 add_filter('woocommerce_rest_prepare_product_object', 'baselinker_prepare_product', 20, 3);
 add_filter('woocommerce_rest_product_object_query', 'baselinker_product_object_query', 10, 2);
 add_filter('woocommerce_product_data_store_cpt_get_products_query', 'baselinker_custom_query_vars', 10, 2 );
+add_action('woocommerce_update_product', 'baselinker_flush_product_cache', 20, 1);
 ?>

@@ -1,8 +1,8 @@
 === Base (formerly BaseLinker) - 300+ marketplaces, 150+ carriers & PIM & OMS & WMS in one ===
 Plugin Name: Base (formerly BaseLinker) - 300+ marketplaces, 150+ carriers & PIM & OMS & WMS in one
 Contributors: baselinker
-Stable tag: 1.1.0
-Tested up to: 6.9.4
+Stable tag: 1.1.2
+Tested up to: 7.1.2
 Requires at least: 4.5.0
 Requires Plugins: woocommerce
 License: GPLv3
@@ -59,6 +59,11 @@ Use a **free 14-day** trial with access to all functionalities or **Freemium sub
 
 
 == Changelog ==
+
+= 1.1.2 =
+
+* Bulk synchronization of product prices
+* Automatic cache refresh after product updates via REST
 
 = 1.1.0 =
 
